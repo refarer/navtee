@@ -1,0 +1,44 @@
+{
+  "name": "navtee",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "setup": "tsx lib/download.js",
+    "build": "react-router build",
+    "start": "react-router-serve ./build/server/index.js"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.9",
+    "@mui/material": "^7.3.9",
+    "@react-router/node": "^7.13.1",
+    "@react-router/serve": "^7.13.1",
+    "@sindresorhus/slugify": "^3.0.0",
+    "@turf/turf": "^7.3.4",
+    "fuse.js": "^7.1.0",
+    "isbot": "^5",
+    "maplibre-gl": "^5.19.0",
+    "osmtogeojson": "3.0.0-beta.5",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-map-gl": "^8.1.0",
+    "react-router": "^7.13.1",
+    "use-debounce": "^10.1.0"
+  },
+  "devDependencies": {
+    "@react-router/dev": "^7.13.1",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}
