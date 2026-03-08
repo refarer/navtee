@@ -252,6 +252,35 @@ const Search = () => {
             </Grid>
           ))}
         </Grid>
+        <Box
+          sx={{
+            mt: 4,
+            display: "flex",
+            gap: 3,
+            alignItems: "center",
+          }}
+        >
+          <Typography
+            component="a"
+            href="mailto:contact@navtee.com"
+            variant="body2"
+            color="text.secondary"
+            sx={{ textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
+          >
+            contact@navtee.com
+          </Typography>
+          <Typography
+            component="a"
+            href="https://github.com/refarer/navtee"
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="body2"
+            color="text.secondary"
+            sx={{ textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
+          >
+            GitHub →
+          </Typography>
+        </Box>
       </div>
     </div>
   );
