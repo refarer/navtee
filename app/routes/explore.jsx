@@ -13,7 +13,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Logo from "../components/Logo";
 import golfClubs from "@/data/golf-clubs.json";
 
-export function loader() {
+export function clientLoader() {
   return { golfClubs };
 }
 
