@@ -15,11 +15,7 @@ services:
   # Downloads PBF if not already present, then serves it over HTTP.
   pbf-server:
     image: python:3-alpine
-    command: >
-      sh -c "[ -f /pbf/planet-latest.osm.pbf ] ||
-             wget -O /pbf/planet-latest.osm.pbf
-             https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf &&
-             python -m http.server 80 --directory /pbf"
+    command: sh -c "[ -f /pbf/planet-latest.osm.pbf ] || wget -O /pbf/planet-latest.osm.pbf https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf && python -m http.server 80 --directory /pbf"
     volumes:
       - ./data/pbf:/pbf
     healthcheck:
