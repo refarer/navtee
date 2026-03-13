@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { useDebounce } from "use-debounce";
 import Fuse from "fuse.js";
-import golfClubs from "@/data/golf-clubs.json";
+import golfClubs from "@/public/data/golf-clubs.json";
 import {
   TextField,
   Autocomplete,

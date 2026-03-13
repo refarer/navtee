@@ -1,0 +1,62 @@
+# Overpass API + Nominatim for building golf course data (full planet).
+#
+# Usage (prod):
+#   docker compose -f docker-compose.data.yml up
+#
+# Usage (dev, Scotland only):
+#   docker compose -f docker-compose.data.yml -f docker-compose.data.dev.yml up
+#
+# Once ready:
+#   OVERPASS_URL=http://localhost:12346/api/interpreter \
+#   NOMINATIM_URL=http://localhost:8080 \
+#   node scripts/build-data.js
+
+services:
+  # Downloads PBF if not already present, then serves it over HTTP.
+  pbf-server:
+    image: python:3-alpine
+    command: >
+      sh -c "[ -f /pbf/planet-latest.osm.pbf ] ||
+             wget -O /pbf/planet-latest.osm.pbf
+             https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf &&
+             python -m http.server 80 --directory /pbf"
+    volumes:
+      - ./data/pbf:/pbf
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/planet-latest.osm.pbf"]
+      interval: 10s
+      start_period: 5s
+
+  overpass:
+    image: wiktorn/overpass-api
+    platform: linux/amd64
+    ports:
+      - "12346:80"
+    environment:
+      OVERPASS_META: "no"
+      OVERPASS_MODE: "init"
+      OVERPASS_PLANET_URL: "http://pbf-server/planet-latest.osm.pbf"
+      OVERPASS_RULES_LOAD: "10"
+    volumes:
+      - overpass-db:/db
+    depends_on:
+      pbf-server:
+        condition: service_healthy
+
+  nominatim:
+    image: mediagis/nominatim:4.4
+    ports:
+      - "8080:8080"
+    environment:
+      PBF_URL: "http://pbf-server/planet-latest.osm.pbf"
+      NOMINATIM_PASSWORD: "nominatim"
+    volumes:
+      - nominatim-db:/var/lib/postgresql/16/main
+    shm_size: 1g
+    depends_on:
+      pbf-server:
+        condition: service_healthy
+
+volumes:
+  overpass-db:
+  nominatim-db:

@@ -1,7 +1,6 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { useEffect } from "react";
 import theme from "./theme";
 import "./globals.css";
 
@@ -24,12 +23,6 @@ export function Layout({ children }) {
 }
 
 export default function App() {
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js");
-    }
-  }, []);
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
