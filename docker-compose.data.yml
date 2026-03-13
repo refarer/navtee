@@ -13,17 +13,25 @@
 
 services:
   # Downloads PBF if not already present, then serves it over HTTP.
-  pbf-server:
-    image: python:3-alpine
-    command: sh -c "[ -f /pbf/planet-latest.osm.pbf ] || (wget -O /pbf/planet-latest.osm.pbf.tmp https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf && mv /pbf/planet-latest.osm.pbf.tmp /pbf/planet-latest.osm.pbf) && python -m http.server 80 --directory /pbf"
+  pbf-download:
+    image: alpine
+    command: sh -c "[ -f /pbf/planet-latest.osm.pbf ] || (wget -O /pbf/planet-latest.osm.pbf.tmp https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf && mv /pbf/planet-latest.osm.pbf.tmp /pbf/planet-latest.osm.pbf)"
     volumes:
       - ./data/pbf:/pbf
+
+  pbf-server:
+    image: nginx:alpine
+    volumes:
+      - ./data/pbf:/usr/share/nginx/html:ro
+    depends_on:
+      pbf-download:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/planet-latest.osm.pbf"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 2h
+      start_period: 30s
 
   overpass:
     image: wiktorn/overpass-api
