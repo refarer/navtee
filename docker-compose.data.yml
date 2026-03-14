@@ -17,12 +17,12 @@ services:
     image: alpine
     command: sh -c "[ -f /pbf/planet-latest.osm.pbf ] || (wget -O /pbf/planet-latest.osm.pbf.tmp https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf && mv /pbf/planet-latest.osm.pbf.tmp /pbf/planet-latest.osm.pbf)"
     volumes:
-      - ./data/pbf:/pbf
+      - pbf:/pbf
 
   pbf-server:
     image: nginx:alpine
     volumes:
-      - ./data/pbf:/usr/share/nginx/html:ro
+      - pbf:/usr/share/nginx/html:ro
     depends_on:
       pbf-download:
         condition: service_completed_successfully
@@ -64,5 +64,6 @@ services:
         condition: service_healthy
 
 volumes:
+  pbf:
   overpass-db:
   nominatim-db:
