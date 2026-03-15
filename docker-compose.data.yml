@@ -19,12 +19,22 @@ services:
     volumes:
       - pbf:/pbf
 
+  # Converts PBF to bz2 for Overpass (which requires bzip2 format).
+  pbf-to-bz2:
+    image: debian:bookworm-slim
+    command: sh -c "[ -f /pbf/planet-latest.osm.bz2 ] || (apt-get update -qq && apt-get install -y -qq --no-install-recommends osmium-tool && osmium cat -o /pbf/planet-latest.osm.bz2 /pbf/planet-latest.osm.pbf)"
+    volumes:
+      - pbf:/pbf
+    depends_on:
+      pbf-download:
+        condition: service_completed_successfully
+
   pbf-server:
     image: nginx:alpine
     volumes:
       - pbf:/usr/share/nginx/html:ro
     depends_on:
-      pbf-download:
+      pbf-to-bz2:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -sfI http://127.0.0.1/planet-latest.osm.pbf > /dev/null"]
@@ -41,7 +51,7 @@ services:
     environment:
       OVERPASS_META: "no"
       OVERPASS_MODE: "init"
-      OVERPASS_PLANET_URL: "http://pbf-server/planet-latest.osm.pbf"
+      OVERPASS_PLANET_URL: "http://pbf-server/planet-latest.osm.bz2"
       OVERPASS_RULES_LOAD: "10"
     volumes:
       - overpass-db:/db
