@@ -13,6 +13,7 @@ WORKDIR /app
 RUN pnpm install --frozen-lockfile --prod
 
 FROM node:24-alpine AS build-env
+ENV NODE_ENV=production
 RUN corepack enable pnpm
 COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
