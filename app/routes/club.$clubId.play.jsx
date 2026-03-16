@@ -23,25 +23,17 @@ import {
   Container,
 } from "@mui/material";
 import GolfCourseIcon from "@mui/icons-material/GolfCourse";
-import { courseStats, addCourses } from "@/lib/utilities";
-import { OverpassClient, extractCourseById } from "@/lib/overpass";
-
-const overpass = new OverpassClient();
+import { courseStats } from "@/lib/utilities";
+import { extractCourseById } from "@/lib/overpass";
 
 export function clientLoader({ params, request }) {
   const url = new URL(request.url);
   const osmType = url.searchParams.get("type");
   const clubId = params.clubId;
-  const clubGeoJSON = Promise.all([
-    overpass.getGolfCourseData(clubId, osmType),
-    import("osmtogeojson"),
-  ]).then(([data, { default: osmtogeojson }]) => {
-    const geojson = osmtogeojson(data);
-    try {
-      return addCourses(geojson);
-    } catch {
-      return geojson;
-    }
+  const apiUrl = `/api/course/${clubId}${osmType ? `?type=${osmType}` : ""}`;
+  const clubGeoJSON = fetch(apiUrl).then((r) => {
+    if (!r.ok) throw new Error(`Failed to load course data`);
+    return r.json();
   });
   return { clubGeoJSON };
 }

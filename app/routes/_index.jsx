@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { useDebounce } from "use-debounce";
-import Fuse from "fuse.js";
-import golfClubs from "@/data/golf-clubs.json";
 import {
   TextField,
   Autocomplete,
@@ -38,19 +36,9 @@ const previewClubs = [
   { clubId: "1006012480", courseId: "928991790", name: "Tara Iti" },
 ];
 
-const fuse = new Fuse(golfClubs.features, {
-  keys: ["properties.name", "properties.address", "properties.operator"],
-  threshold: 0.4,
-  distance: 100,
-});
-
-function searchCourses(query) {
-  return fuse.search(query, { limit: 20 }).map(({ item: f }) => ({
-    name: f.properties.name,
-    display_name: f.properties.address || f.properties.name,
-    osm_id: f.properties.id,
-    osm_type: f.properties.type,
-  }));
+async function searchCourses(query) {
+  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+  return res.json();
 }
 
 const Search = () => {
@@ -60,11 +48,25 @@ const Search = () => {
 
   const [suggestions, setSuggestions] = useState([]);
 
+  const [isSearching, setIsSearching] = useState(false);
+
   useEffect(() => {
-    setSuggestions(debouncedQuery ? searchCourses(debouncedQuery) : []);
+    if (!debouncedQuery) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    setIsSearching(true);
+    searchCourses(debouncedQuery).then((data) => {
+      if (!cancelled) {
+        setSuggestions(data);
+        setIsSearching(false);
+      }
+    });
+    return () => { cancelled = true; };
   }, [debouncedQuery]);
 
-  const isLoading = !!inputValue && inputValue !== debouncedQuery;
+  const isLoading = !!inputValue && (inputValue !== debouncedQuery || isSearching);
 
   return (
     <div
