@@ -5,5 +5,4 @@ export default [
   route("club/:clubId", "routes/club.$clubId.jsx"),
   route("club/:clubId/play", "routes/club.$clubId.play.jsx"),
   route("explore", "routes/explore.jsx"),
-  route("sitemap.xml", "routes/sitemap.xml.jsx"),
 ] satisfies RouteConfig;

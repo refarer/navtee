@@ -7,9 +7,9 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import slugify from "@sindresorhus/slugify";
-import golfClubs from "@/public/data/golf-clubs.json";
+import golfClubs from "@/data/golf-clubs.json";
 
-export function loader({ params }) {
+export function clientLoader({ params }) {
   const clubId = params.clubId.split("-")[0];
   const club = golfClubs.features.find(
     (f) => String(f.properties.id) === String(clubId),

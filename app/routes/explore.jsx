@@ -11,8 +11,9 @@ import { Link, useLoaderData } from "react-router";
 import { Box, Typography, Paper, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Logo from "../components/Logo";
-export async function clientLoader() {
-  const golfClubs = await fetch("/data/golf-clubs.json").then((r) => r.json());
+import golfClubs from "@/data/golf-clubs.json";
+
+export function clientLoader() {
   return { golfClubs };
 }
 

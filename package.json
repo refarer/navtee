@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
-    "setup": "node scripts/build-data.js",
+    "setup": "tsx lib/download.js",
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-"@mui/icons-material": "^7.3.9",
+    "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
     "@react-router/node": "^7.13.1",
     "@react-router/serve": "^7.13.1",

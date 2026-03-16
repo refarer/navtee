@@ -30,7 +30,6 @@ import StraightenIcon from "@mui/icons-material/Straighten";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import ThreeDRotationIcon from "@mui/icons-material/ThreeDRotation";
 
 const customMapStyle = {
   version: 8,
@@ -71,7 +70,6 @@ const MapComponent = ({ courseData, courseId, state }) => {
   const [cursorPos, setCursorPos] = useState(null);
   const [yardageMode, setYardageMode] = useState(false);
   const [useMetric, setUseMetric] = useState(true);
-  const [mode3d, setMode3d] = useState(false);
 
   const unitLabel = useMetric ? "m" : "yd";
   const fmt = (m) => (useMetric ? `${m}m` : `${Math.round(m * 1.09361)}yd`);
@@ -243,10 +241,6 @@ const MapComponent = ({ courseData, courseId, state }) => {
     }));
   }, [center, bearing]);
 
-  useEffect(() => {
-    setViewState((prev) => ({ ...prev, pitch: mode3d ? 60 : 0 }));
-  }, [mode3d]);
-
   const handleGpsToggle = () => {
     if (gpsActive) {
       setGpsActive(false);
@@ -301,36 +295,6 @@ const MapComponent = ({ courseData, courseId, state }) => {
               }}
             />
             <Layer
-              id="natural-areas"
-              type="fill"
-              filter={[
-                "all",
-                ["==", "$type", "Polygon"],
-                ["in", "natural", "wood", "forest", "scrub", "grassland", "wetland", "heath", "sand", "bare_rock", "beach", "fell", "mud", "tundra", "glacier"],
-              ]}
-              paint={{
-                "fill-color": [
-                  "match",
-                  ["get", "natural"],
-                  "wood", "#2d5a1b",
-                  "forest", "#2d5a1b",
-                  "scrub", "#7a8c3c",
-                  "grassland", "#90c060",
-                  "wetland", "#4a9b7a",
-                  "heath", "#8b6066",
-                  "sand", "#e8d4a0",
-                  "bare_rock", "#9e9e9e",
-                  "beach", "#f5deb3",
-                  "fell", "#8b7355",
-                  "mud", "#9e8060",
-                  "tundra", "#a0907a",
-                  "glacier", "#ddeeff",
-                  "#90ee90",
-                ],
-                "fill-opacity": 0.75,
-              }}
-            />
-            <Layer
               id="course-features"
               type="fill"
               filter={[
@@ -369,19 +333,17 @@ const MapComponent = ({ courseData, courseId, state }) => {
               filter={["==", "$type", "LineString"]}
               paint={{
                 "line-color": [
-                  "case",
-                  ["==", ["get", "golf"], "hole"], "#ff4500",
-                  ["==", ["get", "golf"], "cartpath"], "#a9a9a9",
-                  ["==", ["get", "golf"], "out_of_bounds"], "#ffffff",
-                  ["==", ["get", "natural"], "cliff"], "#5a5a5a",
-                  ["==", ["get", "natural"], "tree_row"], "#2d5a1b",
+                  "match",
+                  ["get", "golf"],
+                  "hole",
+                  "#ff4500",
+                  "cartpath",
+                  "#a9a9a9",
+                  "out_of_bounds",
+                  "#ffffff",
                   "#000000",
                 ],
-                "line-width": [
-                  "case",
-                  ["==", ["get", "natural"], "cliff"], 3,
-                  2,
-                ],
+                "line-width": 2,
                 "line-opacity": 1,
               }}
             />
@@ -740,25 +702,6 @@ const MapComponent = ({ courseData, courseId, state }) => {
                 }}
               >
                 <TrackChangesIcon />
-              </IconButton>
-            </Tooltip>
-          </Paper>
-
-          <Paper elevation={4} sx={{ borderRadius: 2, overflow: "hidden" }}>
-            <Tooltip title={mode3d ? "2D View" : "3D View"} placement="right">
-              <IconButton
-                onClick={() => setMode3d((m) => !m)}
-                sx={{
-                  bgcolor: mode3d ? "secondary.main" : "white",
-                  color: mode3d ? "white" : "secondary.main",
-                  borderRadius: 2,
-                  p: 1.5,
-                  "&:hover": {
-                    bgcolor: mode3d ? "secondary.dark" : "grey.100",
-                  },
-                }}
-              >
-                <ThreeDRotationIcon />
               </IconButton>
             </Tooltip>
           </Paper>

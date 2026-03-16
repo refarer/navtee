@@ -23,13 +23,25 @@ import {
   Container,
 } from "@mui/material";
 import GolfCourseIcon from "@mui/icons-material/GolfCourse";
-import { courseStats, extractCourseById } from "@/lib/utilities";
+import { courseStats, addCourses } from "@/lib/utilities";
+import { OverpassClient, extractCourseById } from "@/lib/overpass";
 
-export function clientLoader({ params }) {
-  const clubId = params.clubId.split("-")[0];
-  const clubGeoJSON = fetch(`/data/courses/${clubId}.json`).then((r) => {
-    if (!r.ok) return null;
-    return r.json();
+const overpass = new OverpassClient();
+
+export function clientLoader({ params, request }) {
+  const url = new URL(request.url);
+  const osmType = url.searchParams.get("type");
+  const clubId = params.clubId;
+  const clubGeoJSON = Promise.all([
+    overpass.getGolfCourseData(clubId, osmType),
+    import("osmtogeojson"),
+  ]).then(([data, { default: osmtogeojson }]) => {
+    const geojson = osmtogeojson(data);
+    try {
+      return addCourses(geojson);
+    } catch {
+      return geojson;
+    }
   });
   return { clubGeoJSON };
 }
@@ -89,12 +101,13 @@ const PlayPageContent = ({
   clubGeoJSONPromise,
   state,
   courseId,
+  osmType,
   navigate,
 }) => {
   const clubGeoJSON = use(clubGeoJSONPromise);
 
   const stats = useMemo(() => {
-    const holes = (clubGeoJSON?.features ?? []).filter(
+    const holes = clubGeoJSON.features.filter(
       (x) => x.properties.golf === "hole",
     );
     return courseStats(holes);
@@ -107,13 +120,14 @@ const PlayPageContent = ({
     return null;
   }, [stats, courseId]);
 
-  const courseData = resolvedCourseId && clubGeoJSON
+  const courseData = resolvedCourseId
     ? extractCourseById(clubGeoJSON, resolvedCourseId)
     : null;
 
   const buildParams = (id) => {
     const p = new URLSearchParams();
     if (id) p.set("courseId", id);
+    if (osmType) p.set("type", osmType);
     return `?${p.toString()}`;
   };
 
@@ -229,6 +243,7 @@ const PlayPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const courseId = searchParams.get("courseId");
+  const osmType = searchParams.get("type");
   const { clubGeoJSON } = useLoaderData();
 
   return (
@@ -237,6 +252,7 @@ const PlayPage = () => {
         clubGeoJSONPromise={clubGeoJSON}
         state={state}
         courseId={courseId}
+        osmType={osmType}
         navigate={navigate}
       />
     </Suspense>
