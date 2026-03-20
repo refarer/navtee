@@ -1,12 +1,13 @@
+import { precacheAndRoute } from "workbox-precaching";
+
+precacheAndRoute(self.__WB_MANIFEST);
+
 const CACHE_NAME = "overpass-v1";
-const OVERPASS_ORIGINS = [
-  "https://overpass-api.de",
-  "https://overpass.private.coffee",
-];
+const OVERPASS_ORIGIN = "https://overpass-api.de";
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 self.addEventListener("fetch", (event) => {
-  if (!OVERPASS_ORIGINS.some((o) => event.request.url.startsWith(o))) return;
+  if (!event.request.url.startsWith(OVERPASS_ORIGIN)) return;
   event.respondWith(handleOverpass(event.request));
 });
 

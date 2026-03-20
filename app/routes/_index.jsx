@@ -10,11 +10,33 @@ import {
   Paper,
   Grid,
 } from "@mui/material";
-import Logo from "../components/Logo";
 import CheckeredBackground from "../components/CheckeredBackground";
 
 export function meta() {
-  return [{ title: "NAVTEE" }];
+  return [
+    { title: "NAVTEE — Golf Course Navigation & Maps" },
+    {
+      name: "description",
+      content:
+        "A golf course directory and navigation app. Browse golf clubs worldwide, explore course layouts, and find pin distances.",
+    },
+    { property: "og:title", content: "NAVTEE — Golf Course Navigation & Maps" },
+    {
+      property: "og:description",
+      content:
+        "A golf course directory and navigation app. Browse golf clubs worldwide, explore course layouts, and find pin distances.",
+    },
+    { property: "og:type", content: "website" },
+    { property: "og:image", content: "/web-app-manifest-512x512.png" },
+    { name: "twitter:card", content: "summary" },
+    { name: "twitter:title", content: "NAVTEE — Golf Course Navigation & Maps" },
+    {
+      name: "twitter:description",
+      content:
+        "A golf course directory and navigation app. Browse golf clubs worldwide, explore course layouts, and find pin distances.",
+    },
+    { name: "twitter:image", content: "/web-app-manifest-512x512.png" },
+  ];
 }
 
 const previewClubs = [
@@ -130,7 +152,7 @@ const Search = () => {
               mb: 3,
             }}
           >
-            <Logo width={60} height={60} />
+            <img src="/logo.svg" width={60} height={60} alt="Navtee" />
             <Typography
               variant="h2"
               align="center"

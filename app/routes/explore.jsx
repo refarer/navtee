@@ -10,7 +10,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Link, useLoaderData } from "react-router";
 import { Box, Typography, Paper, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import Logo from "../components/Logo";
 import golfClubs from "@/data/golf-clubs.json";
 
 export function clientLoader() {
@@ -130,7 +129,7 @@ export default function ExplorePage() {
         <IconButton component={Link} to="/" size="small" sx={{ mr: 0.5 }}>
           <ArrowBackIcon fontSize="small" />
         </IconButton>
-        <Logo width={24} height={24} />
+        <img src="/logo.svg" width={24} height={24} alt="Navtee" />
         <Typography variant="subtitle1" fontWeight="bold" color="primary">
           NAVTEE
         </Typography>
