@@ -286,11 +286,43 @@ const MapComponent = ({ courseData, courseId, state }) => {
         >
           <Source id="course-data" type="geojson" data={courseData}>
             <Layer
-              id="water-bodies"
+              id="natural-fills"
               type="fill"
-              filter={["==", ["get", "natural"], "water"]}
+              filter={[
+                "all",
+                ["has", "natural"],
+                ["!=", ["get", "natural"], "tree"],
+                ["!=", ["get", "natural"], "tree_row"],
+                ["!=", ["get", "natural"], "cliff"],
+              ]}
               paint={{
-                "fill-color": "#4682b4",
+                "fill-color": [
+                  "match",
+                  ["get", "natural"],
+                  "water",
+                  "#4682b4",
+                  "wetland",
+                  "#6b9fbe",
+                  "mud",
+                  "#8b7355",
+                  "sand",
+                  "#f4e0b0",
+                  "beach",
+                  "#f5deb3",
+                  "shingle",
+                  "#c8b89a",
+                  "scrub",
+                  "#5a7a3a",
+                  "heath",
+                  "#8a7a5a",
+                  "grassland",
+                  "#a8d08d",
+                  "wood",
+                  "#2e6b2e",
+                  "bare_rock",
+                  "#b8b8b8",
+                  "#888888",
+                ],
                 "fill-opacity": 0.8,
               }}
             />
@@ -300,7 +332,7 @@ const MapComponent = ({ courseData, courseId, state }) => {
               filter={[
                 "all",
                 ["!=", ["get", "golf"], "green"],
-                ["!=", ["get", "natural"], "water"],
+                ["!", ["has", "natural"]],
               ]}
               paint={{
                 "fill-color": [
@@ -353,7 +385,7 @@ const MapComponent = ({ courseData, courseId, state }) => {
               filter={[
                 "all",
                 ["==", "$type", "Point"],
-                ["!=", "natural", "tree"],
+                ["!", ["has", "natural"]],
               ]}
               paint={{
                 "circle-radius": 5,
@@ -365,6 +397,26 @@ const MapComponent = ({ courseData, courseId, state }) => {
                   "#000000",
                 ],
                 "circle-opacity": 0.8,
+              }}
+            />
+            <Layer
+              id="tree-rows"
+              type="line"
+              filter={["==", ["get", "natural"], "tree_row"]}
+              paint={{
+                "line-color": "#228b22",
+                "line-width": 3,
+                "line-opacity": 0.8,
+              }}
+            />
+            <Layer
+              id="cliffs"
+              type="line"
+              filter={["==", ["get", "natural"], "cliff"]}
+              paint={{
+                "line-color": "#6b4226",
+                "line-width": 2,
+                "line-opacity": 0.9,
               }}
             />
             <Layer

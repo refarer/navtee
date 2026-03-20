@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router";
 import { useDebounce } from "use-debounce";
-import Fuse from "fuse.js";
-import golfClubs from "@/data/golf-clubs.json";
 import {
   TextField,
   Autocomplete,
@@ -38,33 +36,69 @@ const previewClubs = [
   { clubId: "1006012480", courseId: "928991790", name: "Tara Iti" },
 ];
 
-const fuse = new Fuse(golfClubs.features, {
-  keys: ["properties.name", "properties.address", "properties.operator"],
-  threshold: 0.4,
-  distance: 100,
-});
-
-function searchCourses(query) {
-  return fuse.search(query, { limit: 20 }).map(({ item: f }) => ({
-    name: f.properties.name,
-    display_name: f.properties.address || f.properties.name,
-    osm_id: f.properties.id,
-    osm_type: f.properties.type,
-  }));
-}
-
 const Search = () => {
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
   const [debouncedQuery] = useDebounce(inputValue, 300);
-
   const [suggestions, setSuggestions] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const miniSearchRef = useRef(null);
+  const initPromiseRef = useRef(null);
+
+  const ensureSearch = useCallback(() => {
+    if (miniSearchRef.current) return Promise.resolve(miniSearchRef.current);
+    if (initPromiseRef.current) return initPromiseRef.current;
+
+    setSearchLoading(true);
+    initPromiseRef.current = Promise.all([
+      import("minisearch"),
+      import("@/data/golf-clubs.json"),
+    ]).then(([MiniSearchMod, golfClubsMod]) => {
+      const MiniSearch = MiniSearchMod.default;
+      const golfClubs = golfClubsMod.default;
+      const ms = new MiniSearch({
+        idField: "id",
+        fields: ["name", "address", "operator"],
+        storeFields: ["name", "address", "id", "type"],
+        searchOptions: {
+          boost: { name: 2 },
+          fuzzy: 0.2,
+          prefix: true,
+        },
+      });
+      ms.addAll(
+        golfClubs.features.map((f) => ({
+          id: f.properties.id,
+          name: f.properties.name,
+          address: f.properties.address,
+          operator: f.properties.operator,
+          type: f.properties.type,
+        })),
+      );
+      miniSearchRef.current = ms;
+      setSearchLoading(false);
+      return ms;
+    });
+    return initPromiseRef.current;
+  }, []);
 
   useEffect(() => {
-    setSuggestions(debouncedQuery ? searchCourses(debouncedQuery) : []);
-  }, [debouncedQuery]);
+    if (!debouncedQuery) {
+      setSuggestions([]);
+      return;
+    }
+    ensureSearch().then((ms) => {
+      const results = ms.search(debouncedQuery).slice(0, 20).map((hit) => ({
+        name: hit.name,
+        display_name: hit.address || hit.name,
+        osm_id: hit.id,
+        osm_type: hit.type,
+      }));
+      setSuggestions(results);
+    });
+  }, [debouncedQuery, ensureSearch]);
 
-  const isLoading = !!inputValue && inputValue !== debouncedQuery;
+  const isLoading = searchLoading || (!!inputValue && inputValue !== debouncedQuery);
 
   return (
     <div
@@ -123,6 +157,7 @@ const Search = () => {
               open={!!inputValue && suggestions.length > 0}
               noOptionsText="No results found"
               onInputChange={(event, newInputValue) => {
+                if (newInputValue) ensureSearch();
                 setInputValue(newInputValue);
               }}
               onChange={(event, newValue) => {
