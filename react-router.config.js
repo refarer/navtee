@@ -3,7 +3,7 @@ import golfClubs from "./data/golf-clubs.json";
 
 /** @type {import('@react-router/dev/config').Config} */
 export default {
-  ssr: true,
+  ssr: false,
   async prerender() {
     const paths = ["/", "/explore", "/sitemap.xml"];
 
