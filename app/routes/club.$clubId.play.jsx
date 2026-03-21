@@ -29,6 +29,10 @@ import { OverpassClient, extractCourseById } from "@/lib/overpass";
 
 const overpass = new OverpassClient();
 
+export function loader() {
+  return { clubGeoJSON: null };
+}
+
 export function clientLoader({ params, request }) {
   const url = new URL(request.url);
   const osmType = url.searchParams.get("type");
@@ -46,6 +50,7 @@ export function clientLoader({ params, request }) {
   });
   return { clubGeoJSON };
 }
+clientLoader.hydrate = true;
 
 const CourseSelectDialog = ({ open, courses, onSelect, onClose }) => (
   <Dialog open={open} onClose={onClose}>
