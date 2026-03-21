@@ -1,3 +1,4 @@
+import { Suspense, use } from "react";
 import { useSearchParams, useLoaderData } from "react-router";
 import { Link } from "react-router";
 import { Box, Typography, Button, Paper, Container } from "@mui/material";
@@ -7,16 +8,32 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import slugify from "@sindresorhus/slugify";
+import LoadingFullPage from "../components/LoadingFullPage";
+
+function findClub(golfClubs, clubId) {
+  const id = clubId.split("-")[0];
+  const club = golfClubs.features.find(
+    (f) => String(f.properties.id) === String(id),
+  );
+  if (!club) return { club: null };
+  return { club: club.properties, coordinates: club.geometry.coordinates };
+}
+
 export async function loader({ params }) {
   const golfClubs = (await import("@/data/golf-clubs.json")).default;
-  const clubId = params.clubId.split("-")[0];
-  const club = golfClubs.features.find(
-    (f) => String(f.properties.id) === String(clubId),
+  return findClub(golfClubs, params.clubId);
+}
+
+export function clientLoader({ params }) {
+  const clubData = import("@/data/golf-clubs.json").then((m) =>
+    findClub(m.default, params.clubId),
   );
-  if (!club) {
-    return { club: null };
-  }
-  return { club: club.properties, coordinates: club.geometry.coordinates };
+  return { clubData };
+}
+clientLoader.hydrate = true;
+
+export function HydrateFallback() {
+  return <LoadingFullPage message="Loading club info..." />;
 }
 
 export function meta({ data }) {
@@ -44,8 +61,7 @@ const InfoRow = ({ icon, children }) => (
   </Box>
 );
 
-const ClubInfoPage = () => {
-  const { club } = useLoaderData();
+const ClubInfoContent = ({ club }) => {
   const [searchParams] = useSearchParams();
   const osmType = searchParams.get("type");
   const typeParam = osmType ? `?type=${osmType}` : "";
@@ -158,6 +174,20 @@ const ClubInfoPage = () => {
         </Typography>
       </Container>
     </Box>
+  );
+};
+
+const ClubInfoResolver = ({ clubDataPromise }) => {
+  const { club } = use(clubDataPromise);
+  return <ClubInfoContent club={club} />;
+};
+
+const ClubInfoPage = () => {
+  const { clubData } = useLoaderData();
+  return (
+    <Suspense fallback={<HydrateFallback />}>
+      <ClubInfoResolver clubDataPromise={clubData} />
+    </Suspense>
   );
 };
 

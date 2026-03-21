@@ -7,7 +7,7 @@ import {
   useRouteError,
   useNavigation,
 } from "react-router";
-import { useMemo, Suspense, use } from "react";
+import { useState, useMemo, Suspense, use } from "react";
 import { Link } from "react-router";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -16,16 +16,11 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import {
-  CircularProgress,
-  Box,
-  Typography,
-  Button,
-  Container,
-} from "@mui/material";
+import { Box, Typography, Button, Container } from "@mui/material";
 import GolfCourseIcon from "@mui/icons-material/GolfCourse";
 import { courseStats, addCourses } from "@/lib/utilities";
 import { OverpassClient, extractCourseById } from "@/lib/overpass";
+import LoadingFullPage from "../components/LoadingFullPage";
 
 const overpass = new OverpassClient();
 
@@ -73,29 +68,6 @@ const CourseSelectDialog = ({ open, courses, onSelect, onClose }) => (
   </Dialog>
 );
 
-const LoadingFullPage = ({ message }) => (
-  <Box
-    sx={{
-      position: "fixed",
-      inset: 0,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      bgcolor: "rgba(255,255,255,0.9)",
-      zIndex: 1300,
-    }}
-  >
-    <Box sx={{ textAlign: "center" }}>
-      <CircularProgress />
-      {message ? (
-        <Box component="div" sx={{ mt: 2, color: "text.secondary" }}>
-          {message}
-        </Box>
-      ) : null}
-    </Box>
-  </Box>
-);
-
 export function HydrateFallback() {
   return <LoadingFullPage message="Loading course..." />;
 }
@@ -110,11 +82,11 @@ export function ErrorBoundary() {
 const PlayPageContent = ({
   clubGeoJSONPromise,
   state,
-  courseId,
-  osmType,
+  initialCourseId,
   navigate,
 }) => {
   const clubGeoJSON = use(clubGeoJSONPromise);
+  const [selectedCourseId, setSelectedCourseId] = useState(null);
 
   const stats = useMemo(() => {
     const holes = clubGeoJSON.features.filter(
@@ -123,23 +95,18 @@ const PlayPageContent = ({
     return courseStats(holes);
   }, [clubGeoJSON]);
 
-  // Prefer valid courseId from URL, fall back to sole course
   const resolvedCourseId = useMemo(() => {
-    if (courseId && stats.some((s) => s.id === courseId)) return courseId;
+    if (selectedCourseId && stats.some((s) => s.id === selectedCourseId))
+      return selectedCourseId;
+    if (initialCourseId && stats.some((s) => s.id === initialCourseId))
+      return initialCourseId;
     if (stats.length === 1) return stats[0].id;
     return null;
-  }, [stats, courseId]);
+  }, [stats, initialCourseId, selectedCourseId]);
 
   const courseData = resolvedCourseId
     ? extractCourseById(clubGeoJSON, resolvedCourseId)
     : null;
-
-  const buildParams = (id) => {
-    const p = new URLSearchParams();
-    if (id) p.set("courseId", id);
-    if (osmType) p.set("type", osmType);
-    return `?${p.toString()}`;
-  };
 
   if (stats.length === 1 && stats[0].courseNumberHoles === 0) {
     return (
@@ -193,7 +160,7 @@ const PlayPageContent = ({
       <CourseSelectDialog
         open={true}
         courses={stats}
-        onSelect={(id) => navigate(buildParams(id), { replace: true })}
+        onSelect={(id) => setSelectedCourseId(id)}
         onClose={() => navigate(-1)}
       />
     );
@@ -254,7 +221,6 @@ const PlayPage = () => {
   const navigate = useNavigate();
   const navigation = useNavigation();
   const courseId = searchParams.get("courseId");
-  const osmType = searchParams.get("type");
   const { clubGeoJSON } = useLoaderData();
   const isLoading = navigation.state === "loading";
 
@@ -264,8 +230,7 @@ const PlayPage = () => {
       <PlayPageContent
         clubGeoJSONPromise={clubGeoJSON}
         state={state}
-        courseId={courseId}
-        osmType={osmType}
+        initialCourseId={courseId}
         navigate={navigate}
       />
     </Suspense>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import { useState, useCallback, Suspense, use } from "react";
 import Map, {
   Source,
   Layer,
@@ -10,9 +10,21 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Link, useLoaderData } from "react-router";
 import { Box, Typography, Paper, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import LoadingFullPage from "../components/LoadingFullPage";
+
 export async function loader() {
   const golfClubs = (await import("@/data/golf-clubs.json")).default;
   return { golfClubs };
+}
+
+export function clientLoader() {
+  const golfClubs = import("@/data/golf-clubs.json").then((m) => m.default);
+  return { golfClubs };
+}
+clientLoader.hydrate = true;
+
+export function HydrateFallback() {
+  return <LoadingFullPage message="Loading map..." />;
 }
 
 const mapStyle = {
@@ -36,8 +48,8 @@ const mapStyle = {
   glyphs: "https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf",
 };
 
-export default function ExplorePage() {
-  const { golfClubs } = useLoaderData();
+function ExploreMap({ golfClubsPromise }) {
+  const golfClubs = use(golfClubsPromise);
   const [viewState, setViewState] = useState({
     latitude: 0,
     longitude: 0,
@@ -189,5 +201,14 @@ export default function ExplorePage() {
         )}
       </Map>
     </Box>
+  );
+}
+
+export default function ExplorePage() {
+  const { golfClubs } = useLoaderData();
+  return (
+    <Suspense fallback={<HydrateFallback />}>
+      <ExploreMap golfClubsPromise={golfClubs} />
+    </Suspense>
   );
 }
