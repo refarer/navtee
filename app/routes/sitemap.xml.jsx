@@ -1,13 +1,14 @@
 import slugify from "@sindresorhus/slugify";
 import golfClubs from "@/data/golf-clubs.json";
 
-export function loader({ request }) {
-  const base = new URL(request.url).origin;
+export function loader() {
+  const base = "https://navtee.com";
 
   const staticPaths = ["/", "/explore"];
   const clubPaths = golfClubs.features.map((f) => {
     const { id, name } = f.properties;
-    return name ? `/club/${id}-${slugify(name)}` : `/club/${id}`;
+    const s = name ? slugify(name) : "";
+    return s ? `/club/${id}-${s}` : `/club/${id}`;
   });
 
   const urls = [...staticPaths, ...clubPaths]
