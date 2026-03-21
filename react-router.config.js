@@ -10,7 +10,7 @@ export default {
     for (const f of golfClubs.features) {
       const { id, name } = f.properties;
       const slug = name ? `${id}-${slugify(name)}` : `${id}`;
-      paths.push(`/club/${slug}`, `/club/${slug}/play`);
+      paths.push(`/club/${slug}`);
     }
 
     return paths;
