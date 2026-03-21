@@ -90,6 +90,10 @@ const LoadingFullPage = ({ message }) => (
   </Box>
 );
 
+export function HydrateFallback() {
+  return <LoadingFullPage message="Loading course..." />;
+}
+
 export function ErrorBoundary() {
   const error = useRouteError();
   const message =
