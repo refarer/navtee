@@ -1,7 +1,7 @@
 import slugify from "@sindresorhus/slugify";
-import golfClubs from "@/data/golf-clubs.json";
 
-export function loader() {
+export async function loader() {
+  const golfClubs = (await import("@/data/golf-clubs.json")).default;
   const base = "https://navtee.com";
 
   const staticPaths = ["/", "/explore"];
