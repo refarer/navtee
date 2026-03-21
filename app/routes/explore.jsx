@@ -10,9 +10,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Link, useLoaderData } from "react-router";
 import { Box, Typography, Paper, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import golfClubs from "@/data/golf-clubs.json";
-
-export function clientLoader() {
+export async function clientLoader() {
+  const golfClubs = (await import("@/data/golf-clubs.json")).default;
   return { golfClubs };
 }
 
