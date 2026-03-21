@@ -376,7 +376,7 @@ const MapComponent = ({ courseData, courseId, state }) => {
             <Layer
               id="course-lines"
               type="line"
-              filter={["==", "$type", "LineString"]}
+              filter={["==", ["geometry-type"], "LineString"]}
               paint={{
                 "line-color": [
                   "match",
@@ -398,7 +398,7 @@ const MapComponent = ({ courseData, courseId, state }) => {
               type="circle"
               filter={[
                 "all",
-                ["==", "$type", "Point"],
+                ["==", ["geometry-type"], "Point"],
                 ["!", ["has", "natural"]],
               ]}
               paint={{
@@ -467,7 +467,7 @@ const MapComponent = ({ courseData, courseId, state }) => {
               type="line"
               filter={[
                 "all",
-                ["==", "$type", "Polygon"],
+                ["==", ["geometry-type"], "Polygon"],
                 ["!=", ["get", "leisure"], "golf_course"],
               ]}
               paint={{
