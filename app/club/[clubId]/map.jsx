@@ -47,6 +47,20 @@ const customMapStyle = {
 const MapComponent = ({ courseData, courseId, state }) => {
   const navigate = useNavigate();
 
+  const outsideMask = useMemo(() => {
+    const boundaries = courseData.features.filter(
+      (f) => f.properties.leisure === "golf_course",
+    );
+    if (boundaries.length === 0) return null;
+
+    let combined = boundaries[0];
+    for (let i = 1; i < boundaries.length; i++) {
+      combined = turf.union(turf.featureCollection([combined, boundaries[i]]));
+    }
+    const buffered = turf.buffer(combined, 0.02);
+    return turf.mask(buffered);
+  }, [courseData]);
+
   const tees = courseData.features.filter((x) => x.properties.golf === "hole");
   const holeNumbers = useMemo(
     () =>
@@ -439,9 +453,23 @@ const MapComponent = ({ courseData, courseId, state }) => {
               }}
             />
             <Layer
+              id="course-boundary"
+              type="line"
+              filter={["==", ["get", "leisure"], "golf_course"]}
+              paint={{
+                "line-color": "#1b5e20",
+                "line-width": 3,
+                "line-opacity": 0.8,
+              }}
+            />
+            <Layer
               id="feature-outlines"
               type="line"
-              filter={["==", "$type", "Polygon"]}
+              filter={[
+                "all",
+                ["==", "$type", "Polygon"],
+                ["!=", ["get", "leisure"], "golf_course"],
+              ]}
               paint={{
                 "line-color": "#000000",
                 "line-width": 1,
@@ -474,6 +502,19 @@ const MapComponent = ({ courseData, courseId, state }) => {
               />
             )}
           </Source>
+
+          {outsideMask && (
+            <Source id="outside-mask" type="geojson" data={outsideMask}>
+              <Layer
+                id="outside-mask-fill"
+                type="fill"
+                paint={{
+                  "fill-color": "#e0e0e0",
+                  "fill-opacity": 1,
+                }}
+              />
+            </Source>
+          )}
 
           {activeGps && (
             <Marker

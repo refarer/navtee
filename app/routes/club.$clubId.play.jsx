@@ -5,6 +5,7 @@ import {
   useNavigate,
   useLoaderData,
   useRouteError,
+  useNavigation,
 } from "react-router";
 import { useMemo, Suspense, use } from "react";
 import { Link } from "react-router";
@@ -246,12 +247,15 @@ const PlayPage = () => {
   const state = useGeolocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const navigation = useNavigation();
   const courseId = searchParams.get("courseId");
   const osmType = searchParams.get("type");
   const { clubGeoJSON } = useLoaderData();
+  const isLoading = navigation.state === "loading";
 
   return (
-    <Suspense fallback={<LoadingFullPage />}>
+    <Suspense fallback={<LoadingFullPage message="Loading course..." />}>
+      {isLoading && <LoadingFullPage message="Loading course..." />}
       <PlayPageContent
         clubGeoJSONPromise={clubGeoJSON}
         state={state}
