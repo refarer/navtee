@@ -57,7 +57,7 @@ const CourseSelectDialog = ({ open, courses, onSelect, onClose }) => (
             <ListItemButton onClick={() => onSelect(course.id)}>
               <ListItemText
                 primary={`Holes: ${course.courseNumberHoles}, Par: ${
-                  course.coursePar
+                  course.coursePar == null ? "Unknown" : course.coursePar
                 }, Length: ${Math.round(course.courseLength)}m`}
               />
             </ListItemButton>
@@ -210,6 +210,7 @@ const PlayPageContent = ({
         courseData={courseData}
         courseId={resolvedCourseId}
         state={state}
+        onBack={stats.length > 1 ? () => setSelectedCourseId(null) : undefined}
       />
     </div>
   );

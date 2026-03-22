@@ -30,6 +30,7 @@ import StraightenIcon from "@mui/icons-material/Straighten";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import GolfCourseIcon from "@mui/icons-material/GolfCourse";
 
 const customMapStyle = {
   version: 8,
@@ -44,7 +45,7 @@ const customMapStyle = {
   ],
 };
 
-const MapComponent = ({ courseData, courseId, state }) => {
+const MapComponent = ({ courseData, courseId, state, onBack }) => {
   const navigate = useNavigate();
 
   const outsideMask = useMemo(() => {
@@ -696,7 +697,7 @@ const MapComponent = ({ courseData, courseId, state }) => {
           <Paper elevation={4} sx={{ borderRadius: 2, overflow: "hidden" }}>
             <Tooltip title="Exit" placement="right">
               <IconButton
-                onClick={() => navigate(-1)}
+                onClick={() => navigate("/")}
                 sx={{
                   bgcolor: "white",
                   color: "text.secondary",
@@ -709,6 +710,24 @@ const MapComponent = ({ courseData, courseId, state }) => {
               </IconButton>
             </Tooltip>
           </Paper>
+          {onBack && (
+            <Paper elevation={4} sx={{ borderRadius: 2, overflow: "hidden" }}>
+              <Tooltip title="Course Select" placement="right">
+                <IconButton
+                  onClick={onBack}
+                  sx={{
+                    bgcolor: "white",
+                    color: "primary.main",
+                    borderRadius: 2,
+                    p: 1.5,
+                    "&:hover": { bgcolor: "grey.100" },
+                  }}
+                >
+                  <GolfCourseIcon />
+                </IconButton>
+              </Tooltip>
+            </Paper>
+          )}
           <Paper elevation={4} sx={{ borderRadius: 2, overflow: "hidden" }}>
             <Tooltip
               title={

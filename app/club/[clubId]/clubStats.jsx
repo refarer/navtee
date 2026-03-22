@@ -33,7 +33,7 @@ const ClubStats = ({ clubInfo }) => {
               <p>Holes: {course.courseNumberHoles}</p>
               <p>
                 Par:{" "}
-                {Number.isNaN(course.coursePar)
+                {course.coursePar == null
                   ? "Not Available"
                   : course.coursePar}
               </p>
