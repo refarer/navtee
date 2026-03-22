@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
-    "setup": "tsx lib/download.js",
+    "setup": "node lib/download.js",
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js"
   },
