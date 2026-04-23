@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
@@ -31,6 +32,7 @@ import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import GolfCourseIcon from "@mui/icons-material/GolfCourse";
+import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 
 const customMapStyle = {
   version: 8,
@@ -45,7 +47,24 @@ const customMapStyle = {
   ],
 };
 
-const MapComponent = ({ courseData, courseId, state, onBack }) => {
+function formatVsPar(value) {
+  if (value == null) return null;
+  if (value === 0) return "E";
+  return value > 0 ? `+${value}` : String(value);
+}
+
+const MapComponent = ({
+  courseData,
+  courseId,
+  state,
+  onBack,
+  scorecardHoles,
+  scoresByHoleKey,
+  onSetHoleScore,
+  onClearHoleScore,
+  onResetRound,
+  roundSummary,
+}) => {
   const navigate = useNavigate();
 
   const outsideMask = useMemo(() => {
@@ -85,19 +104,37 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
   const [cursorPos, setCursorPos] = useState(null);
   const [yardageMode, setYardageMode] = useState(false);
   const [useMetric, setUseMetric] = useState(true);
+  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
+  const [scoreInputValue, setScoreInputValue] = useState("");
+  const [scoreSummaryOpen, setScoreSummaryOpen] = useState(false);
+
+  const getHoleDataForNumber = (holeNumber) =>
+    tees.find((x, i) =>
+      x.properties.ref
+        ? Number(x.properties.ref) === holeNumber
+        : i + 1 === holeNumber &&
+          (x.properties.courseId ? x.properties.courseId === courseId : true),
+    ) ?? tees[0];
+
+  const getViewStateForHole = (holeData) => {
+    const holeCenter = turf.center(turf.points(holeData.geometry.coordinates));
+    const holeTee = holeData.geometry.coordinates[0];
+    const holeMiddleGreen =
+      holeData.geometry.coordinates[holeData.geometry.coordinates.length - 1];
+
+    return {
+      longitude: holeCenter.geometry.coordinates[0],
+      latitude: holeCenter.geometry.coordinates[1],
+      bearing: turf.bearing(turf.point(holeTee), turf.point(holeMiddleGreen)),
+    };
+  };
 
   const unitLabel = useMetric ? "m" : "yd";
   const fmt = (m) => (useMetric ? `${m}m` : `${Math.round(m * 1.09361)}yd`);
 
   const activeGps = gpsActive && state?.loaded;
 
-  const currentHoleData =
-    tees.find((x, i) =>
-      x.properties.ref
-        ? Number(x.properties.ref) === currentHoleNumber
-        : i + 1 === currentHoleNumber &&
-          (x.properties.courseId ? x.properties.courseId === courseId : true),
-    ) ?? tees[0];
+  const currentHoleData = getHoleDataForNumber(currentHoleNumber);
   const currentHoleTee = currentHoleData.geometry.coordinates[0];
   const currentHoleMiddleGreen =
     currentHoleData.geometry.coordinates[
@@ -117,23 +154,39 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
       turf.point(currentHoleMiddleGreen),
     ) * 1000,
   );
-  const bearing = turf.bearing(
-    turf.point(currentHoleTee),
-    turf.point(currentHoleMiddleGreen),
-  );
-  const center = useMemo(
-    () => turf.center(turf.points(currentHoleData.geometry.coordinates)),
-    [currentHoleData],
-  );
   const currentHolePar = currentHoleData.properties.par;
+  const currentScorecardHole =
+    scorecardHoles.find((hole) => hole.holeNumber === currentHoleNumber) ??
+    scorecardHoles[0] ??
+    null;
+  const currentHoleScore = currentScorecardHole
+    ? scoresByHoleKey[currentScorecardHole.key] ?? null
+    : null;
+  const currentHoleVsPar =
+    currentScorecardHole?.par != null && currentHoleScore != null
+      ? currentHoleScore - currentScorecardHole.par
+      : null;
+  const parsedScoreInput = Number(scoreInputValue);
+  const scoreInputError =
+    scoreInputValue !== "" &&
+    (!Number.isInteger(parsedScoreInput) || parsedScoreInput <= 0);
 
   const [viewState, setViewState] = useState({
-    longitude: center.geometry.coordinates[0],
-    latitude: center.geometry.coordinates[1],
     zoom: 16.25,
     pitch: 0,
-    bearing: bearing,
+    ...getViewStateForHole(currentHoleData),
   });
+
+  const focusHole = (holeNumber) => {
+    const holeData = getHoleDataForNumber(holeNumber);
+    if (!holeData) return;
+
+    setCurrentHoleNumber(holeNumber);
+    setViewState((prev) => ({
+      ...prev,
+      ...getViewStateForHole(holeData),
+    }));
+  };
 
   // Yardage half-circles centred on the green, perpendicular to the last hole segment
   const yardageCircles = useMemo(() => {
@@ -233,28 +286,19 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
     const currentIndex = holeNumbers.indexOf(currentHoleNumber);
 
     if (back) {
-      setCurrentHoleNumber(
+      focusHole(
         currentIndex <= 0
           ? holeNumbers[holeNumbers.length - 1]
           : holeNumbers[currentIndex - 1],
       );
     } else {
-      setCurrentHoleNumber(
+      focusHole(
         currentIndex >= holeNumbers.length - 1
           ? holeNumbers[0]
           : holeNumbers[currentIndex + 1],
       );
     }
   };
-
-  useEffect(() => {
-    setViewState((prev) => ({
-      ...prev,
-      bearing,
-      longitude: center.geometry.coordinates[0],
-      latitude: center.geometry.coordinates[1],
-    }));
-  }, [center, bearing]);
 
   const handleGpsToggle = () => {
     if (gpsActive) {
@@ -280,6 +324,43 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
       },
       { enableHighAccuracy: true, timeout: 5000 },
     );
+  };
+
+  const openScoreDialog = () => {
+    setScoreInputValue(currentHoleScore != null ? String(currentHoleScore) : "");
+    setScoreDialogOpen(true);
+  };
+
+  const closeScoreDialog = () => {
+    setScoreDialogOpen(false);
+    setScoreInputValue("");
+  };
+
+  const saveScore = (score) => {
+    if (!currentScorecardHole || !Number.isInteger(score) || score <= 0) {
+      return;
+    }
+
+    onSetHoleScore(currentScorecardHole.key, score);
+    closeScoreDialog();
+  };
+
+  const handleSaveScore = () => {
+    if (scoreInputError || scoreInputValue === "") {
+      return;
+    }
+
+    saveScore(parsedScoreInput);
+  };
+
+  const handleQuickScoreSelect = (score) => {
+    saveScore(score);
+  };
+
+  const handleClearScore = () => {
+    if (!currentScorecardHole) return;
+    onClearHoleScore(currentScorecardHole.key);
+    closeScoreDialog();
   };
 
   return (
@@ -688,6 +769,7 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
             position: "absolute",
             top: 16,
             left: 16,
+            zIndex: 20,
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-start",
@@ -819,6 +901,25 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
           </Paper>
 
           <Paper elevation={4} sx={{ borderRadius: 2, overflow: "hidden" }}>
+            <Tooltip title="Scorecard" placement="right">
+              <IconButton
+                onClick={() => setScoreSummaryOpen(true)}
+                sx={{
+                  bgcolor: scoreSummaryOpen ? "primary.main" : "white",
+                  color: scoreSummaryOpen ? "white" : "primary.main",
+                  borderRadius: 2,
+                  p: 1.5,
+                  "&:hover": {
+                    bgcolor: scoreSummaryOpen ? "primary.dark" : "grey.100",
+                  },
+                }}
+              >
+                <ScoreboardIcon />
+              </IconButton>
+            </Tooltip>
+          </Paper>
+
+          <Paper elevation={4} sx={{ borderRadius: 2, overflow: "hidden" }}>
             <Tooltip title="Settings" placement="right">
               <IconButton
                 onClick={() => setSettingsOpen((o) => !o)}
@@ -900,6 +1001,37 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
           )}
         </Box>
 
+        {activeGps && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              zIndex: 20,
+            }}
+          >
+            <Paper
+              elevation={4}
+              sx={{
+                bgcolor: "success.main",
+                color: "white",
+                px: 1.25,
+                py: 0.75,
+                borderRadius: 2,
+                minWidth: 92,
+                textAlign: "center",
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                {fmt(distanceToHole)}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "inherit" }}>
+                {`+-${fmt(Math.round(state.accuracy || 0))}`}
+              </Typography>
+            </Paper>
+          </Box>
+        )}
+
         {/* Cursor hint label */}
         {measureMode && measurePoints.length < 2 && cursorPos && (
           <Box
@@ -939,20 +1071,6 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
               overflow: "hidden",
             }}
           >
-            {activeGps && (
-              <Box
-                sx={{
-                  bgcolor: "success.main",
-                  color: "white",
-                  textAlign: "center",
-                  py: 0.75,
-                }}
-              >
-                <Typography variant="body1" fontWeight="bold">
-                  {`${fmt(distanceToHole)}  ±${fmt(Math.round(state.accuracy || 0))}`}
-                </Typography>
-              </Box>
-            )}
             <Box
               sx={{
                 display: "flex",
@@ -988,6 +1106,21 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
                 <Typography variant="body2" color="text.secondary">
                   {fmt(holeLength)}
                 </Typography>
+                <Button
+                  onClick={openScoreDialog}
+                  variant={currentHoleScore != null ? "contained" : "outlined"}
+                  color="primary"
+                  sx={{ mt: 1.25, borderRadius: 999, minWidth: 120 }}
+                >
+                  {currentHoleScore != null
+                    ? `Score ${currentHoleScore}`
+                    : "Enter score"}
+                </Button>
+                {currentHoleVsPar != null && (
+                  <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                    {formatVsPar(currentHoleVsPar)} for hole
+                  </Typography>
+                )}
               </Box>
               <IconButton
                 onClick={() => nextHole(false)}
@@ -1029,6 +1162,170 @@ const MapComponent = ({ courseData, courseId, state, onBack }) => {
             >
               Try Again
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={scoreDialogOpen}
+          onClose={closeScoreDialog}
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle>{`Hole ${currentHoleNumber} score`}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Tap a score to save it, or enter a custom value.
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: 1,
+                mb: 2,
+              }}
+            >
+              {Array.from({ length: 9 }, (_, index) => index + 1).map((score) => (
+                <Button
+                  key={score}
+                  variant={currentHoleScore === score ? "contained" : "outlined"}
+                  color="primary"
+                  onClick={() => handleQuickScoreSelect(score)}
+                  sx={{ minHeight: 48, fontSize: 18, fontWeight: "bold" }}
+                >
+                  {score}
+                </Button>
+              ))}
+            </Box>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+              <TextField
+                autoFocus
+                fullWidth
+                margin="dense"
+                label="Custom score"
+                type="number"
+                value={scoreInputValue}
+                onChange={(e) => setScoreInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSaveScore();
+                  }
+                }}
+                inputProps={{ inputMode: "numeric", min: 1, step: 1 }}
+                error={scoreInputError}
+                helperText={
+                  scoreInputError
+                    ? "Use a whole number greater than zero"
+                    : "For scores above 9"
+                }
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSaveScore}
+                disabled={scoreInputValue === "" || scoreInputError}
+                sx={{ mt: 1, minWidth: 88, minHeight: 56 }}
+              >
+                Set
+              </Button>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            {currentHoleScore != null && (
+              <Button color="error" onClick={handleClearScore}>
+                Clear
+              </Button>
+            )}
+            <Button onClick={closeScoreDialog}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={scoreSummaryOpen}
+          onClose={() => setScoreSummaryOpen(false)}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Scorecard</DialogTitle>
+          <DialogContent>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: 1,
+                mb: 2,
+              }}
+            >
+              <Paper variant="outlined" sx={{ p: 1.25, textAlign: "center" }}>
+                <Typography variant="caption" color="text.secondary">
+                  Holes
+                </Typography>
+                <Typography variant="h6" fontWeight="bold">
+                  {`${roundSummary.completedHoles}/${roundSummary.totalHoles}`}
+                </Typography>
+              </Paper>
+              <Paper variant="outlined" sx={{ p: 1.25, textAlign: "center" }}>
+                <Typography variant="caption" color="text.secondary">
+                  Total
+                </Typography>
+                <Typography variant="h6" fontWeight="bold">
+                  {roundSummary.totalStrokes}
+                </Typography>
+              </Paper>
+              <Paper variant="outlined" sx={{ p: 1.25, textAlign: "center" }}>
+                <Typography variant="caption" color="text.secondary">
+                  Vs Par
+                </Typography>
+                <Typography variant="h6" fontWeight="bold">
+                  {roundSummary.vsParLabel ?? "-"}
+                </Typography>
+              </Paper>
+            </Box>
+
+            <Box sx={{ display: "grid", gap: 1 }}>
+              {scorecardHoles.map((hole) => {
+                const score = scoresByHoleKey[hole.key];
+                const holeVsPar =
+                  hole.par != null && score != null ? score - hole.par : null;
+
+                return (
+                  <Paper
+                    key={hole.key}
+                    variant="outlined"
+                    sx={{
+                      p: 1.25,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 1,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        {`Hole ${hole.holeNumber}`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {hole.par != null ? `Par ${hole.par}` : "Par unknown"}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "right" }}>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {score ?? "-"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {holeVsPar != null ? formatVsPar(holeVsPar) : "Unscored"}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button color="error" onClick={onResetRound}>
+              Reset round
+            </Button>
+            <Button onClick={() => setScoreSummaryOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
       </Box>

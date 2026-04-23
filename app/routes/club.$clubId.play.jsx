@@ -6,6 +6,7 @@ import {
   useLoaderData,
   useRouteError,
   useNavigation,
+  useParams,
 } from "react-router";
 import { useState, useMemo, Suspense, use } from "react";
 import { Link } from "react-router";
@@ -23,6 +24,101 @@ import { OverpassClient, extractCourseById } from "@/lib/overpass";
 import LoadingFullPage from "../components/LoadingFullPage";
 
 const overpass = new OverpassClient();
+const ROUND_STORAGE_PREFIX = "navtee.round";
+
+function getHoleNumber(hole, index) {
+  return hole.properties.ref ? Number(hole.properties.ref) : index + 1;
+}
+
+function buildScorecardHoles(courseData, courseId) {
+  if (!courseData) return [];
+
+  const holes = [];
+
+  for (const [index, feature] of courseData.features.entries()) {
+    if (feature.properties.golf !== "hole") continue;
+
+    const holeNumber = getHoleNumber(feature, index);
+    const parsedPar = Number(feature.properties.par);
+    holes.push({
+      key:
+        feature.properties.id != null
+          ? String(feature.properties.id)
+          : `${courseId}:${holeNumber}:${index}`,
+      holeNumber,
+      par: Number.isFinite(parsedPar) ? parsedPar : null,
+      index,
+    });
+  }
+
+  return holes.sort((a, b) => a.holeNumber - b.holeNumber || a.index - b.index);
+}
+
+function formatVsPar(value) {
+  if (value == null) return null;
+  if (value === 0) return "E";
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function readStoredScores(storageKey, holeOrder) {
+  if (!storageKey || typeof window === "undefined") return {};
+
+  try {
+    const rawRound = window.localStorage.getItem(storageKey);
+    if (!rawRound) return {};
+
+    const parsedRound = JSON.parse(rawRound);
+    const savedHoleOrder = Array.isArray(parsedRound?.holeOrder)
+      ? parsedRound.holeOrder
+      : [];
+
+    if (
+      savedHoleOrder.length !== holeOrder.length ||
+      !savedHoleOrder.every((holeKey, index) => holeKey === holeOrder[index])
+    ) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsedRound?.scoresByHoleKey ?? {}).filter(
+        ([holeKey, value]) =>
+          holeOrder.includes(holeKey) && Number.isInteger(value) && value > 0,
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredRound({
+  storageKey,
+  clubId,
+  courseId,
+  holeOrder,
+  scoresByHoleKey,
+}) {
+  if (!storageKey || typeof window === "undefined") return;
+
+  try {
+    if (Object.keys(scoresByHoleKey).length === 0) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        clubId,
+        courseId,
+        holeOrder,
+        scoresByHoleKey,
+        updatedAt: Date.now(),
+      }),
+    );
+  } catch {
+    // Ignore storage failures so scoring still works in memory.
+  }
+}
 
 export function loader() {
   return { clubGeoJSON: null };
@@ -76,10 +172,20 @@ export function ErrorBoundary() {
   const error = useRouteError();
   const message =
     error instanceof Error ? error.message : "Failed to load course data";
-  return <LoadingFullPage message={message} />;
+  return (
+    <LoadingFullPage
+      message={message}
+      action={
+        <Button variant="contained" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      }
+    />
+  );
 }
 
 const PlayPageContent = ({
+  clubId,
   clubGeoJSONPromise,
   state,
   initialCourseId,
@@ -87,6 +193,7 @@ const PlayPageContent = ({
 }) => {
   const clubGeoJSON = use(clubGeoJSONPromise);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
+  const [roundCache, setRoundCache] = useState({});
 
   const stats = useMemo(() => {
     const holes = clubGeoJSON.features.filter(
@@ -107,6 +214,96 @@ const PlayPageContent = ({
   const courseData = resolvedCourseId
     ? extractCourseById(clubGeoJSON, resolvedCourseId)
     : null;
+  const scorecardHoles = useMemo(
+    () => buildScorecardHoles(courseData, resolvedCourseId),
+    [courseData, resolvedCourseId],
+  );
+  const holeOrder = useMemo(
+    () => scorecardHoles.map((hole) => hole.key),
+    [scorecardHoles],
+  );
+  const storageKey = resolvedCourseId
+    ? `${ROUND_STORAGE_PREFIX}.${clubId}.${resolvedCourseId}`
+    : null;
+  const storedScoresByHoleKey = useMemo(
+    () => readStoredScores(storageKey, holeOrder),
+    [storageKey, holeOrder],
+  );
+  const scoresByHoleKey =
+    storageKey && Object.prototype.hasOwnProperty.call(roundCache, storageKey)
+      ? roundCache[storageKey]
+      : storedScoresByHoleKey;
+
+  const roundSummary = useMemo(() => {
+    let completedHoles = 0;
+    let totalStrokes = 0;
+    let comparableStrokes = 0;
+    let comparablePar = 0;
+
+    for (const hole of scorecardHoles) {
+      const score = scoresByHoleKey[hole.key];
+      if (!Number.isInteger(score)) continue;
+      completedHoles += 1;
+      totalStrokes += score;
+      if (hole.par != null) {
+        comparableStrokes += score;
+        comparablePar += hole.par;
+      }
+    }
+
+    const vsPar = comparablePar > 0 ? comparableStrokes - comparablePar : null;
+
+    return {
+      completedHoles,
+      totalHoles: scorecardHoles.length,
+      totalStrokes,
+      vsPar,
+      vsParLabel: formatVsPar(vsPar),
+    };
+  }, [scorecardHoles, scoresByHoleKey]);
+
+  const setHoleScore = (holeKey, score) => {
+    if (!storageKey) return;
+
+    const nextScores = { ...scoresByHoleKey, [holeKey]: score };
+    setRoundCache((prev) => ({ ...prev, [storageKey]: nextScores }));
+    writeStoredRound({
+      storageKey,
+      clubId,
+      courseId: resolvedCourseId,
+      holeOrder,
+      scoresByHoleKey: nextScores,
+    });
+  };
+
+  const clearHoleScore = (holeKey) => {
+    if (!storageKey || !(holeKey in scoresByHoleKey)) return;
+
+    const nextScores = { ...scoresByHoleKey };
+    delete nextScores[holeKey];
+
+    setRoundCache((prev) => ({ ...prev, [storageKey]: nextScores }));
+    writeStoredRound({
+      storageKey,
+      clubId,
+      courseId: resolvedCourseId,
+      holeOrder,
+      scoresByHoleKey: nextScores,
+    });
+  };
+
+  const resetRound = () => {
+    if (!storageKey) return;
+
+    setRoundCache((prev) => ({ ...prev, [storageKey]: {} }));
+    writeStoredRound({
+      storageKey,
+      clubId,
+      courseId: resolvedCourseId,
+      holeOrder,
+      scoresByHoleKey: {},
+    });
+  };
 
   if (stats.length === 1 && stats[0].courseNumberHoles === 0) {
     return (
@@ -211,6 +408,12 @@ const PlayPageContent = ({
         courseId={resolvedCourseId}
         state={state}
         onBack={stats.length > 1 ? () => setSelectedCourseId(null) : undefined}
+        scorecardHoles={scorecardHoles}
+        scoresByHoleKey={scoresByHoleKey}
+        onSetHoleScore={setHoleScore}
+        onClearHoleScore={clearHoleScore}
+        onResetRound={resetRound}
+        roundSummary={roundSummary}
       />
     </div>
   );
@@ -221,6 +424,7 @@ const PlayPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const navigation = useNavigation();
+  const { clubId } = useParams();
   const courseId = searchParams.get("courseId");
   const { clubGeoJSON } = useLoaderData();
   const isLoading = navigation.state === "loading";
@@ -229,6 +433,7 @@ const PlayPage = () => {
     <Suspense fallback={<LoadingFullPage message="Loading course..." />}>
       {isLoading && <LoadingFullPage message="Loading course..." />}
       <PlayPageContent
+        clubId={clubId}
         clubGeoJSONPromise={clubGeoJSON}
         state={state}
         initialCourseId={courseId}

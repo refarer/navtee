@@ -1,6 +1,6 @@
 import { CircularProgress, Box } from "@mui/material";
 
-const LoadingFullPage = ({ message }) => (
+const LoadingFullPage = ({ message, action }) => (
   <Box
     sx={{
       position: "fixed",
@@ -19,6 +19,7 @@ const LoadingFullPage = ({ message }) => (
           {message}
         </Box>
       ) : null}
+      {action ? <Box sx={{ mt: 2 }}>{action}</Box> : null}
     </Box>
   </Box>
 );
