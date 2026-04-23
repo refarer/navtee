@@ -1,12 +1,12 @@
 # Navtee
 
-A golf course directory and navigation app powered by OpenStreetMap and the Overpass API. Browse golf clubs worldwide, explore course layouts, and find pin distances.
+A golf course directory, GPS yardage, and scorekeeping app powered by OpenStreetMap and the Overpass API. Browse golf clubs worldwide, explore course layouts and track your round.
 
 ## Features
 
 - **Club directory** — searchable map of golf courses sourced from OpenStreetMap
 - **Course detail pages** — hole-by-hole layout rendered from OSM geometry
-- **Play mode** — geolocation-aware round tracking
+- **Play mode** — geolocation-aware round tracking with per-hole scoring
 - **Explore view** — full-screen map to discover nearby courses
 
 ## Tech Stack
