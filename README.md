@@ -5,8 +5,9 @@ A golf course directory, GPS yardage, and scorekeeping app powered by OpenStreet
 ## Features
 
 - **Club directory** — searchable map of golf courses sourced from OpenStreetMap
-- **Course detail pages** — hole-by-hole layout rendered from OSM geometry
-- **Play mode** — geolocation-aware round tracking with per-hole scoring
+
+- **Play mode** — hole-by-hole layout rendered from OSM geometry with geolocation-aware round tracking with per-hole scoring
+
 - **Explore view** — full-screen map to discover nearby courses
 
 ## Tech Stack
@@ -46,6 +47,57 @@ pnpm dev
 pnpm build
 pnpm start
 ```
+
+## Capture Assets
+
+The repo includes a unified capture script for screenshots and demo videos.
+
+All captures are saved to `screenshots/`.
+
+### Capture a screenshot
+
+```bash
+pnpm screenshots -- --url "http://localhost:5173/" --executable-path "/path/to/browser"
+```
+
+You can pass multiple `--url` values.
+
+Optional flags:
+
+- `--size WIDTHxHEIGHT`
+- `--device desktop|mobile`
+- `--preset "iPhone 14"`
+
+### Capture a video
+
+```bash
+pnpm video -- --url "http://localhost:5173/club/1006012480/play?courseId=928991790" --executable-path "/path/to/browser"
+```
+
+Optional flags:
+
+- `--size WIDTHxHEIGHT`
+- `--device desktop|mobile`
+- `--preset "iPhone 14"`
+
+### Run the default capture sequence
+
+```bash
+pnpm capture-sequence -- --executable-path "/path/to/browser"
+```
+
+The default sequence captures:
+
+- home screenshot, desktop
+- home screenshot, mobile
+- explore screenshot, desktop
+- explore screenshot, mobile
+- play screenshot, desktop
+- play screenshot, mobile
+- play video, desktop
+- play video, mobile
+
+Sequence definitions live in `scripts/capture.js` under `captureSequences`.
 
 ## Routes
 

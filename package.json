@@ -7,7 +7,10 @@
     "dev": "react-router dev",
     "setup": "node lib/download.js",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js"
+    "start": "react-router-serve ./build/server/index.js",
+    "screenshots": "node scripts/capture.js --mode screenshot",
+    "video": "node scripts/capture.js --mode video",
+    "capture-sequence": "node scripts/capture.js --sequence default"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -34,6 +37,7 @@
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
+    "puppeteer": "^24.25.0",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "vite": "^7.3.1",

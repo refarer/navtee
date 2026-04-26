@@ -1,4 +1,4 @@
-import { useState, useCallback, Suspense, use } from "react";
+import { useEffect, useState, useCallback, Suspense, use } from "react";
 import Map, {
   Source,
   Layer,
@@ -11,6 +11,49 @@ import { Link, useLoaderData } from "react-router";
 import { Box, Typography, Paper, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LoadingFullPage from "../components/LoadingFullPage";
+
+const exposeDevMap = import.meta.env.DEV;
+const DEFAULT_VIEW_STATE = {
+  latitude: 0,
+  longitude: 0,
+  zoom: 2,
+};
+
+function getInitialViewState(golfClubs) {
+  const coordinates = golfClubs.features
+    .map((feature) => feature.geometry?.coordinates)
+    .filter((coords) =>
+      Array.isArray(coords) &&
+      coords.length >= 2 &&
+      Number.isFinite(coords[0]) &&
+      Number.isFinite(coords[1]),
+    );
+
+  if (coordinates.length === 0) return DEFAULT_VIEW_STATE;
+
+  let minLng = coordinates[0][0];
+  let maxLng = coordinates[0][0];
+  let minLat = coordinates[0][1];
+  let maxLat = coordinates[0][1];
+
+  for (const [lng, lat] of coordinates) {
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  }
+
+  const lngSpan = Math.max(maxLng - minLng, 0.02);
+  const latSpan = Math.max(maxLat - minLat, 0.02);
+  const span = Math.max(lngSpan, latSpan);
+  const zoom = Math.max(8, Math.min(12, Math.log2(360 / (span * 2.4))));
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    zoom,
+  };
+}
 
 export async function loader() {
   const golfClubs = (await import("@/data/golf-clubs.json")).default;
@@ -50,12 +93,19 @@ const mapStyle = {
 
 function ExploreMap({ golfClubsPromise }) {
   const golfClubs = use(golfClubsPromise);
-  const [viewState, setViewState] = useState({
-    latitude: 0,
-    longitude: 0,
-    zoom: 2,
-  });
+  const [mapReady, setMapReady] = useState(false);
+  const [viewState, setViewState] = useState(() =>
+    exposeDevMap ? getInitialViewState(golfClubs) : DEFAULT_VIEW_STATE,
+  );
   const [popupInfo, setPopupInfo] = useState(null);
+
+  useEffect(() => {
+    if (!exposeDevMap || typeof window === "undefined") return;
+
+    return () => {
+      delete window.__navteeExploreMap;
+    };
+  }, [exposeDevMap]);
 
   const onClickMap = useCallback((event) => {
     const feature = event.features && event.features[0];
@@ -120,7 +170,10 @@ function ExploreMap({ golfClubsPromise }) {
   };
 
   return (
-    <Box sx={{ width: "100%", height: "100dvh", position: "relative" }}>
+    <Box
+      sx={{ width: "100%", height: "100dvh", position: "relative" }}
+      data-explore-map-ready={mapReady ? "true" : "false"}
+    >
       {/* Header */}
       <Paper
         elevation={2}
@@ -148,7 +201,14 @@ function ExploreMap({ golfClubsPromise }) {
 
       <Map
         {...viewState}
+        preserveDrawingBuffer={exposeDevMap}
         onMove={(evt) => setViewState(evt.viewState)}
+        onLoad={(evt) => {
+          if (exposeDevMap && typeof window !== "undefined") {
+            window.__navteeExploreMap = evt.target;
+          }
+        }}
+        onIdle={() => setMapReady(true)}
         style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyle}
         mapLib={maplibregl}

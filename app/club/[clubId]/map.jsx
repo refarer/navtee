@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
@@ -33,6 +33,9 @@ import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import GolfCourseIcon from "@mui/icons-material/GolfCourse";
 import ScoreboardIcon from "@mui/icons-material/Scoreboard";
+
+const exposeAutomation = import.meta.env.DEV;
+const preserveDrawingBuffer = import.meta.env.DEV;
 
 const customMapStyle = {
   version: 8,
@@ -107,6 +110,7 @@ const MapComponent = ({
   const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
   const [scoreInputValue, setScoreInputValue] = useState("");
   const [scoreSummaryOpen, setScoreSummaryOpen] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   const getHoleDataForNumber = (holeNumber) =>
     tees.find((x, i) =>
@@ -176,6 +180,71 @@ const MapComponent = ({
     pitch: 0,
     ...getViewStateForHole(currentHoleData),
   });
+
+  const automationTargets = useMemo(() => {
+    if (!exposeAutomation) return null;
+    if (!currentHoleData?.geometry?.coordinates?.length) return null;
+
+    const holeLine = turf.lineString(currentHoleData.geometry.coordinates);
+    const holeLengthKm = turf.length(holeLine);
+    const offsetPoint = (fraction, offsetMeters) => {
+      const clampedFraction = Math.max(0, Math.min(0.98, fraction));
+      const basePoint =
+        holeLengthKm > 0
+          ? turf.along(holeLine, holeLengthKm * clampedFraction)
+          : turf.point(currentHoleData.geometry.coordinates[0]);
+      const nextPoint =
+        holeLengthKm > 0
+          ? turf.along(holeLine, holeLengthKm * Math.min(0.99, clampedFraction + 0.03))
+          : turf.point(currentHoleData.geometry.coordinates[1] ?? currentHoleData.geometry.coordinates[0]);
+      const bearing = turf.bearing(basePoint, nextPoint);
+
+      return turf.destination(basePoint, offsetMeters, bearing + 90, {
+        units: "meters",
+      }).geometry.coordinates;
+    };
+
+    const bunkers = courseData.features
+      .filter((feature) => feature.properties.golf === "bunker")
+      .map((feature) => {
+        const center = turf.centroid(feature).geometry.coordinates;
+        const snapped = turf.nearestPointOnLine(holeLine, turf.point(center));
+        return {
+          center,
+          distanceToHole: snapped.properties.dist,
+        };
+      })
+      .sort((a, b) => a.distanceToHole - b.distanceToHole);
+
+    return {
+      userPath: [
+        offsetPoint(0.32, -4),
+        offsetPoint(0.35, -1),
+        offsetPoint(0.38, 2),
+        offsetPoint(0.41, 5),
+      ],
+      bunkerTarget: bunkers[0]?.center ?? currentHoleMiddleGreen,
+    };
+  }, [courseData.features, currentHoleData, currentHoleMiddleGreen]);
+
+  useEffect(() => {
+    if (!exposeAutomation || typeof window === "undefined") return;
+
+    window.__navteeMapAutomation = automationTargets;
+
+    return () => {
+      delete window.__navteeMapAutomation;
+    };
+  }, [automationTargets, exposeAutomation]);
+
+  useEffect(() => {
+    if (!exposeAutomation || typeof window === "undefined") return;
+
+    return () => {
+      delete window.__navteeMapAutomation;
+      delete window.__navteeMap;
+    };
+  }, [exposeAutomation]);
 
   const focusHole = (holeNumber) => {
     const holeData = getHoleDataForNumber(holeNumber);
@@ -365,10 +434,21 @@ const MapComponent = ({
 
   return (
     <Box sx={{ position: "relative", height: "100%" }}>
-      <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
+      <Box
+        sx={{ position: "relative", width: "100%", height: "100%" }}
+        data-map-ready={mapReady ? "true" : "false"}
+        data-testid="play-map-shell"
+      >
         <Map
           {...viewState}
+          preserveDrawingBuffer={preserveDrawingBuffer}
           onMove={(evt) => setViewState(evt.viewState)}
+          onLoad={(evt) => {
+            if (exposeAutomation && typeof window !== "undefined") {
+              window.__navteeMap = evt.target;
+            }
+          }}
+          onIdle={() => setMapReady(true)}
           onClick={handleMapClick}
           onMouseMove={(evt) => {
             if (measureMode && measurePoints.length < 2)
@@ -823,6 +903,7 @@ const MapComponent = ({
             >
               <IconButton
                 onClick={handleGpsToggle}
+                data-testid="gps-toggle"
                 sx={{
                   bgcolor: gpsActive
                     ? activeGps
@@ -861,6 +942,7 @@ const MapComponent = ({
             >
               <IconButton
                 onClick={toggleMeasureMode}
+                data-testid="measure-toggle"
                 sx={{
                   bgcolor: measureMode ? "error.main" : "white",
                   color: measureMode ? "white" : "error.main",
@@ -885,6 +967,7 @@ const MapComponent = ({
             >
               <IconButton
                 onClick={() => setYardageMode((m) => !m)}
+                data-testid="yardage-toggle"
                 sx={{
                   bgcolor: yardageMode ? "info.main" : "white",
                   color: yardageMode ? "white" : "info.main",
@@ -904,6 +987,7 @@ const MapComponent = ({
             <Tooltip title="Scorecard" placement="right">
               <IconButton
                 onClick={() => setScoreSummaryOpen(true)}
+                data-testid="scorecard-toggle"
                 sx={{
                   bgcolor: scoreSummaryOpen ? "primary.main" : "white",
                   color: scoreSummaryOpen ? "white" : "primary.main",
@@ -923,6 +1007,7 @@ const MapComponent = ({
             <Tooltip title="Settings" placement="right">
               <IconButton
                 onClick={() => setSettingsOpen((o) => !o)}
+                data-testid="settings-toggle"
                 sx={{
                   bgcolor: settingsOpen ? "warning.main" : "white",
                   color: settingsOpen ? "white" : "warning.main",
@@ -960,6 +1045,7 @@ const MapComponent = ({
                     checked={showLabels}
                     onChange={(e) => setShowLabels(e.target.checked)}
                     color="warning"
+                    inputProps={{ "data-testid": "labels-switch" }}
                   />
                 }
                 label={<Typography variant="caption">Labels</Typography>}
@@ -978,21 +1064,24 @@ const MapComponent = ({
                   exclusive
                   size="small"
                   value={useMetric ? "m" : "yd"}
+                  data-testid="units-toggle"
                   onChange={(_, val) => {
                     if (val) setUseMetric(val === "m");
                   }}
                   color="warning"
                 >
-                  <ToggleButton
-                    value="m"
-                    sx={{ px: 1.5, py: 0.25, fontSize: 12 }}
-                  >
+                    <ToggleButton
+                      value="m"
+                      data-testid="units-m"
+                      sx={{ px: 1.5, py: 0.25, fontSize: 12 }}
+                    >
                     m
                   </ToggleButton>
-                  <ToggleButton
-                    value="yd"
-                    sx={{ px: 1.5, py: 0.25, fontSize: 12 }}
-                  >
+                    <ToggleButton
+                      value="yd"
+                      data-testid="units-yd"
+                      sx={{ px: 1.5, py: 0.25, fontSize: 12 }}
+                    >
                     yd
                   </ToggleButton>
                 </ToggleButtonGroup>
@@ -1082,6 +1171,7 @@ const MapComponent = ({
             >
               <IconButton
                 onClick={() => nextHole(true)}
+                data-testid="prev-hole"
                 sx={{
                   bgcolor: "white",
                   color: "success.main",
@@ -1108,6 +1198,7 @@ const MapComponent = ({
                 </Typography>
                 <Button
                   onClick={openScoreDialog}
+                  data-testid="score-button"
                   variant={currentHoleScore != null ? "contained" : "outlined"}
                   color="primary"
                   sx={{ mt: 1.25, borderRadius: 999, minWidth: 120 }}
@@ -1124,6 +1215,7 @@ const MapComponent = ({
               </Box>
               <IconButton
                 onClick={() => nextHole(false)}
+                data-testid="next-hole"
                 sx={{
                   bgcolor: "white",
                   color: "success.main",
@@ -1168,6 +1260,7 @@ const MapComponent = ({
         <Dialog
           open={scoreDialogOpen}
           onClose={closeScoreDialog}
+          data-testid="score-dialog"
           fullWidth
           maxWidth="xs"
         >
@@ -1187,6 +1280,7 @@ const MapComponent = ({
               {Array.from({ length: 9 }, (_, index) => index + 1).map((score) => (
                 <Button
                   key={score}
+                  data-testid={`quick-score-${score}`}
                   variant={currentHoleScore === score ? "contained" : "outlined"}
                   color="primary"
                   onClick={() => handleQuickScoreSelect(score)}
@@ -1203,6 +1297,7 @@ const MapComponent = ({
                 margin="dense"
                 label="Custom score"
                 type="number"
+                data-testid="custom-score-input"
                 value={scoreInputValue}
                 onChange={(e) => setScoreInputValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -1232,17 +1327,20 @@ const MapComponent = ({
           </DialogContent>
           <DialogActions>
             {currentHoleScore != null && (
-              <Button color="error" onClick={handleClearScore}>
+              <Button data-testid="clear-score" color="error" onClick={handleClearScore}>
                 Clear
               </Button>
             )}
-            <Button onClick={closeScoreDialog}>Cancel</Button>
+            <Button data-testid="score-dialog-cancel" onClick={closeScoreDialog}>
+              Cancel
+            </Button>
           </DialogActions>
         </Dialog>
 
         <Dialog
           open={scoreSummaryOpen}
           onClose={() => setScoreSummaryOpen(false)}
+          data-testid="scorecard-dialog"
           fullWidth
           maxWidth="sm"
         >
@@ -1322,10 +1420,12 @@ const MapComponent = ({
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button color="error" onClick={onResetRound}>
+            <Button data-testid="reset-round" color="error" onClick={onResetRound}>
               Reset round
             </Button>
-            <Button onClick={() => setScoreSummaryOpen(false)}>Close</Button>
+            <Button data-testid="scorecard-close" onClick={() => setScoreSummaryOpen(false)}>
+              Close
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>
