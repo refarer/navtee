@@ -2,6 +2,11 @@
 
 A golf course directory, GPS yardage, and scorekeeping app powered by OpenStreetMap and the Overpass API. Browse golf clubs worldwide, explore course layouts and track your round.
 
+
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/ba46c4fc-9fd6-4b8e-afef-a874592d7f45"></video>
+</div>
+
 ## Features
 
 - **Club directory** — searchable map of golf courses sourced from OpenStreetMap
